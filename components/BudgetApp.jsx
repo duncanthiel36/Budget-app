@@ -2,13 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut, Settings } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../lib/AuthProvider";
 import { useBudgetData } from "../lib/useBudgetData";
 
-const CATEGORIES = ["Rent", "Food", "Investments", "Debt", "Pets", "Other"];
+const ALL_CATEGORIES = [
+  "Rent",
+  "Food",
+  "Investments",
+  "Debt",
+  "Pets",
+  "Other",
+  "Subscriptions",
+  "Personal",
+  "Utilities",
+  "Transportation",
+  "Health",
+  "Travel",
+];
 
 const CATEGORY_COLORS = {
   Rent: "#5B7FA6",
@@ -17,6 +30,12 @@ const CATEGORY_COLORS = {
   Debt: "#B15C5C",
   Pets: "#6B9C6E",
   Other: "#8A8F98",
+  Subscriptions: "#4F9B96",
+  Personal: "#C9A24A",
+  Utilities: "#7C8E42",
+  Transportation: "#C97B8B",
+  Health: "#A65D8A",
+  Travel: "#9C6B3F",
 };
 
 const TRACK_COLOR = "#E7E3D8";
@@ -63,18 +82,33 @@ function uid() {
 
 export default function BudgetApp() {
   const { user } = useAuth();
-  const { transactions, setTransactions, targets, setTargets, loaded } = useBudgetData();
+  const {
+    transactions,
+    setTransactions,
+    targets,
+    setTargets,
+    visibleCategories,
+    setVisibleCategories,
+    loaded,
+  } = useBudgetData();
+
+  const displayCategories =
+    visibleCategories && visibleCategories.length
+      ? ALL_CATEGORIES.filter((c) => visibleCategories.includes(c))
+      : ALL_CATEGORIES;
 
   const [page, setPage] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
   const [showTargetModal, setShowTargetModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [draftVisible, setDraftVisible] = useState([]);
   const [autoPromptShown, setAutoPromptShown] = useState({});
   const [draftTargets, setDraftTargets] = useState({});
 
   const [formType, setFormType] = useState("debit");
   const [formDate, setFormDate] = useState(todayISO());
   const [formAmount, setFormAmount] = useState("");
-  const [formCategory, setFormCategory] = useState(CATEGORIES[0]);
+  const [formCategory, setFormCategory] = useState(ALL_CATEGORIES[0]);
   const [formError, setFormError] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [selectedDay, setSelectedDay] = useState(null);
@@ -91,7 +125,9 @@ export default function BudgetApp() {
       !targets[selectedMonth] &&
       !autoPromptShown[selectedMonth]
     ) {
-      setDraftTargets({ Rent: "", Food: "", Investments: "", Debt: "", Pets: "", Other: "" });
+      const blank = {};
+      ALL_CATEGORIES.forEach((c) => (blank[c] = ""));
+      setDraftTargets(blank);
       setShowTargetModal(true);
       setAutoPromptShown((p) => ({ ...p, [selectedMonth]: true }));
     }
@@ -99,15 +135,15 @@ export default function BudgetApp() {
 
   const monthTx = transactions.filter((t) => t.date.slice(0, 7) === selectedMonth);
   const spentByCategory = {};
-  CATEGORIES.forEach((c) => (spentByCategory[c] = 0));
+  ALL_CATEGORIES.forEach((c) => (spentByCategory[c] = 0));
   let earned = 0;
   monthTx.forEach((t) => {
     if (t.type === "debit") spentByCategory[t.category] += t.amount;
     else earned += t.amount;
   });
-  const totalSpent = CATEGORIES.reduce((s, c) => s + spentByCategory[c], 0);
+  const totalSpent = ALL_CATEGORIES.reduce((s, c) => s + spentByCategory[c], 0);
   const monthTargets = targets[selectedMonth] || {};
-  const totalTarget = CATEGORIES.reduce((s, c) => s + (Number(monthTargets[c]) || 0), 0);
+  const totalTarget = ALL_CATEGORIES.reduce((s, c) => s + (Number(monthTargets[c]) || 0), 0);
 
   const totalBalance = transactions.reduce((bal, t) => {
     if (t.date.slice(0, 7) >= currentRealMonth) return bal;
@@ -117,17 +153,31 @@ export default function BudgetApp() {
   function openTargetEditor() {
     const existing = targets[selectedMonth] || {};
     const d = {};
-    CATEGORIES.forEach((c) => (d[c] = existing[c] != null ? String(existing[c]) : ""));
+    ALL_CATEGORIES.forEach((c) => (d[c] = existing[c] != null ? String(existing[c]) : ""));
     setDraftTargets(d);
     setShowTargetModal(true);
   }
   function saveTargets() {
     const clean = {};
-    CATEGORIES.forEach((c) => (clean[c] = Number(draftTargets[c]) || 0));
+    ALL_CATEGORIES.forEach((c) => (clean[c] = Number(draftTargets[c]) || 0));
     setTargets((prev) => ({ ...prev, [selectedMonth]: clean }));
     setShowTargetModal(false);
   }
-  const draftTotal = CATEGORIES.reduce((s, c) => s + (Number(draftTargets[c]) || 0), 0);
+  const draftTotal = ALL_CATEGORIES.reduce((s, c) => s + (Number(draftTargets[c]) || 0), 0);
+
+  function openCategoryEditor() {
+    setDraftVisible(displayCategories);
+    setShowCategoryModal(true);
+  }
+  function toggleDraftCategory(c) {
+    setDraftVisible((prev) =>
+      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+    );
+  }
+  function saveVisibleCategories() {
+    setVisibleCategories(ALL_CATEGORIES.filter((c) => draftVisible.includes(c)));
+    setShowCategoryModal(false);
+  }
 
   function addTransaction() {
     const amt = Number(formAmount);
@@ -253,10 +303,17 @@ export default function BudgetApp() {
               >
                 <Pencil size={16} />
               </button>
+              <button
+                onClick={openCategoryEditor}
+                className="p-2 rounded-full hover:bg-stone-100 text-stone-400"
+                aria-label="Choose categories"
+              >
+                <Settings size={16} />
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map((c) => {
+              {displayCategories.map((c) => {
                 const spent = spentByCategory[c];
                 const target = Number(monthTargets[c]) || 0;
                 const over = target > 0 && spent > target;
@@ -321,7 +378,7 @@ export default function BudgetApp() {
                   onChange={(e) => setFormCategory(e.target.value)}
                   className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
                 >
-                  {CATEGORIES.map((c) => (
+                  {ALL_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -459,13 +516,13 @@ export default function BudgetApp() {
             <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets for {monthLabel(selectedMonth)}</h2>
             <p className="text-xs text-stone-400 mb-4">Total updates automatically as you go.</p>
             <div className="space-y-2 mb-4">
-              {CATEGORIES.map((c) => (
+              {ALL_CATEGORIES.map((c) => (
                 <div key={c} className="flex items-center gap-3">
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: CATEGORY_COLORS[c] }}
                   />
-                  <label className="text-sm text-stone-600 w-20">{c}</label>
+                  <label className="text-sm text-stone-600 w-28 shrink-0">{c}</label>
                   <input
                     type="number"
                     min="0"
@@ -494,6 +551,46 @@ export default function BudgetApp() {
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-stone-800 text-white"
               >
                 Save targets
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-6 z-50">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
+            <h2 className="font-serif text-lg text-stone-800 mb-1">Choose categories</h2>
+            <p className="text-xs text-stone-400 mb-4">Pick what shows on the overview. Everything still counts toward your totals either way.</p>
+            <div className="space-y-1 mb-4 max-h-72 overflow-y-auto">
+              {ALL_CATEGORIES.map((c) => (
+                <label key={c} className="flex items-center gap-3 py-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={draftVisible.includes(c)}
+                    onChange={() => toggleDraftCategory(c)}
+                    className="w-4 h-4 accent-stone-800"
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: CATEGORY_COLORS[c] }}
+                  />
+                  <span className="text-sm text-stone-700">{c}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium border border-stone-200 text-stone-500"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveVisibleCategories}
+                className="flex-1 py-2 rounded-xl text-sm font-medium bg-stone-800 text-white"
+              >
+                Save
               </button>
             </div>
           </div>

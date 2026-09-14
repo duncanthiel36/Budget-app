@@ -56,7 +56,7 @@ export default function SignIn() {
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
-        <h1 className="font-serif text-2xl text-stone-800 mb-1 text-center">Budget</h1>
+        <h1 className="font-serif text-2xl text-stone-800 mb-1 text-center">Monthly Budget</h1>
         <p className="text-sm text-stone-400 text-center mb-6">
           {mode === "signin" ? "Sign in to your account" : "Create an account"}
         </p>
