@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, Menu } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../lib/AuthProvider";
@@ -98,6 +98,7 @@ export default function BudgetApp() {
       : ALL_CATEGORIES;
 
   const [page, setPage] = useState("overview");
+  const [showMenu, setShowMenu] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
   const [showTargetModal, setShowTargetModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -237,14 +238,42 @@ export default function BudgetApp() {
     <div className="min-h-screen bg-stone-50 flex justify-center">
       <div className="w-full max-w-sm bg-stone-50 pb-20">
         <div className="px-5 pt-5 flex items-center justify-between">
-          <p className="text-xs text-stone-400 truncate max-w-[220px]">{user?.email}</p>
+  <p className="text-xs text-stone-400 truncate max-w-[220px]">{user?.email}</p>
+  <div className="relative">
+    <button
+      onClick={() => setShowMenu((v) => !v)}
+      className="p-1.5 rounded-full hover:bg-stone-200 text-stone-500"
+      aria-label="Menu"
+    >
+      <Menu size={18} />
+    </button>
+    {showMenu && (
+      <>
+        <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
+        <div className="absolute right-0 top-9 bg-white border border-stone-200 rounded-xl py-1 w-44 z-40">
           <button
-            onClick={() => signOut(auth)}
-            className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600"
+            onClick={() => {
+              setShowMenu(false);
+              openCategoryEditor();
+            }}
+            className="w-full text-left px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
           >
-            <LogOut size={13} /> Sign out
+            Choose categories
+          </button>
+          <button
+            onClick={() => {
+              setShowMenu(false);
+              signOut(auth);
+            }}
+            className="w-full text-left px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
+          >
+            Sign out
           </button>
         </div>
+      </>
+    )}
+  </div>
+</div>
 
         <div className="px-5 pt-2 pb-3 flex items-center justify-between">
           <button
@@ -302,13 +331,6 @@ export default function BudgetApp() {
                 aria-label="Edit targets"
               >
                 <Pencil size={16} />
-              </button>
-              <button
-                onClick={openCategoryEditor}
-                className="p-2 rounded-full hover:bg-stone-100 text-stone-400"
-                aria-label="Choose categories"
-              >
-                <Settings size={16} />
               </button>
             </div>
 
