@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../lib/AuthProvider";
@@ -98,10 +98,8 @@ export default function BudgetApp() {
       : ALL_CATEGORIES;
 
   const [page, setPage] = useState("overview");
-  const [showMenu, setShowMenu] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
   const [showTargetModal, setShowTargetModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [draftVisible, setDraftVisible] = useState([]);
   const [autoPromptShown, setAutoPromptShown] = useState({});
   const [draftTargets, setDraftTargets] = useState({});
@@ -129,6 +127,7 @@ export default function BudgetApp() {
       const blank = {};
       ALL_CATEGORIES.forEach((c) => (blank[c] = ""));
       setDraftTargets(blank);
+      setDraftVisible(displayCategories);
       setShowTargetModal(true);
       setAutoPromptShown((p) => ({ ...p, [selectedMonth]: true }));
     }
@@ -156,29 +155,22 @@ export default function BudgetApp() {
     const d = {};
     ALL_CATEGORIES.forEach((c) => (d[c] = existing[c] != null ? String(existing[c]) : ""));
     setDraftTargets(d);
-    setShowTargetModal(true);
-  }
-  function saveTargets() {
-    const clean = {};
-    ALL_CATEGORIES.forEach((c) => (clean[c] = Number(draftTargets[c]) || 0));
-    setTargets((prev) => ({ ...prev, [selectedMonth]: clean }));
-    setShowTargetModal(false);
-  }
-  const draftTotal = ALL_CATEGORIES.reduce((s, c) => s + (Number(draftTargets[c]) || 0), 0);
-
-  function openCategoryEditor() {
     setDraftVisible(displayCategories);
-    setShowCategoryModal(true);
+    setShowTargetModal(true);
   }
   function toggleDraftCategory(c) {
     setDraftVisible((prev) =>
       prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
     );
   }
-  function saveVisibleCategories() {
+  function saveTargets() {
+    const clean = {};
+    ALL_CATEGORIES.forEach((c) => (clean[c] = Number(draftTargets[c]) || 0));
+    setTargets((prev) => ({ ...prev, [selectedMonth]: clean }));
     setVisibleCategories(ALL_CATEGORIES.filter((c) => draftVisible.includes(c)));
-    setShowCategoryModal(false);
+    setShowTargetModal(false);
   }
+  const draftTotal = ALL_CATEGORIES.reduce((s, c) => s + (Number(draftTargets[c]) || 0), 0);
 
   function addTransaction() {
     const amt = Number(formAmount);
@@ -238,42 +230,14 @@ export default function BudgetApp() {
     <div className="min-h-screen bg-stone-50 flex justify-center">
       <div className="w-full max-w-sm bg-stone-50 pb-20">
         <div className="px-5 pt-5 flex items-center justify-between">
-  <p className="text-xs text-stone-400 truncate max-w-[220px]">{user?.email}</p>
-  <div className="relative">
-    <button
-      onClick={() => setShowMenu((v) => !v)}
-      className="p-1.5 rounded-full hover:bg-stone-200 text-stone-500"
-      aria-label="Menu"
-    >
-      <Menu size={18} />
-    </button>
-    {showMenu && (
-      <>
-        <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
-        <div className="absolute right-0 top-9 bg-white border border-stone-200 rounded-xl py-1 w-44 z-40">
+          <p className="text-xs text-stone-400 truncate max-w-[220px]">{user?.email}</p>
           <button
-            onClick={() => {
-              setShowMenu(false);
-              openCategoryEditor();
-            }}
-            className="w-full text-left px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
+            onClick={() => signOut(auth)}
+            className="flex items-center gap-1 text-xs text-stone-400 hover:text-stone-600"
           >
-            Choose categories
-          </button>
-          <button
-            onClick={() => {
-              setShowMenu(false);
-              signOut(auth);
-            }}
-            className="w-full text-left px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
-          >
-            Sign out
+            <LogOut size={13} /> Sign out
           </button>
         </div>
-      </>
-    )}
-  </div>
-</div>
 
         <div className="px-5 pt-2 pb-3 flex items-center justify-between">
           <button
@@ -334,7 +298,7 @@ export default function BudgetApp() {
               </button>
             </div>
 
-                        <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               {displayCategories.map((c) => {
                 const spent = spentByCategory[c];
                 const target = Number(monthTargets[c]) || 0;
@@ -537,25 +501,33 @@ export default function BudgetApp() {
       {showTargetModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-6 z-50">
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
-            <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets for {monthLabel(selectedMonth)}</h2>
-            <p className="text-xs text-stone-400 mb-4">Total updates automatically as you go.</p>
-            <div className="space-y-2 mb-4">
+            <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets and visible categories</h2>
+            <p className="text-xs text-stone-400 mb-4">
+              Check a category to show it on the overview. Total updates automatically as you go.
+            </p>
+            <div className="space-y-2 mb-4 max-h-80 overflow-y-auto">
               {ALL_CATEGORIES.map((c) => (
-                <div key={c} className="flex items-center gap-3">
+                <div key={c} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={draftVisible.includes(c)}
+                    onChange={() => toggleDraftCategory(c)}
+                    className="w-4 h-4 accent-stone-800 shrink-0"
+                  />
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: CATEGORY_COLORS[c] }}
                   />
-                  <label className="text-sm text-stone-600 w-24 shrink-0">{c}</label>
+                  <label className="text-sm text-stone-600 flex-1 min-w-0 truncate">{c}</label>
                   <input
-                   type="number"
-                   min="0"
-                  step="1"
-                  value={draftTargets[c] ?? ""}
-                  onChange={(e) => setDraftTargets((p) => ({ ...p, [c]: e.target.value }))}
-                 placeholder="0"
-                className="flex-1 min-w-0 border border-stone-200 rounded-xl px-3 py-1.5 text-sm text-stone-700"
-                 />
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={draftTargets[c] ?? ""}
+                    onChange={(e) => setDraftTargets((p) => ({ ...p, [c]: e.target.value }))}
+                    placeholder="0"
+                    className="w-20 shrink-0 border border-stone-200 rounded-xl px-2 py-1.5 text-sm text-stone-700"
+                  />
                 </div>
               ))}
             </div>
@@ -572,46 +544,6 @@ export default function BudgetApp() {
               </button>
               <button
                 onClick={saveTargets}
-                className="flex-1 py-2 rounded-xl text-sm font-medium bg-stone-800 text-white"
-              >
-                Save targets
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-6 z-50">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
-            <h2 className="font-serif text-lg text-stone-800 mb-1">Choose categories</h2>
-            <p className="text-xs text-stone-400 mb-4">Pick what shows on the overview. Everything still counts toward your totals either way.</p>
-            <div className="space-y-1 mb-4 max-h-72 overflow-y-auto">
-              {ALL_CATEGORIES.map((c) => (
-                <label key={c} className="flex items-center gap-3 py-1.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={draftVisible.includes(c)}
-                    onChange={() => toggleDraftCategory(c)}
-                    className="w-4 h-4 accent-stone-800"
-                  />
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: CATEGORY_COLORS[c] }}
-                  />
-                  <span className="text-sm text-stone-700">{c}</span>
-                </label>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="flex-1 py-2 rounded-xl text-sm font-medium border border-stone-200 text-stone-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveVisibleCategories}
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-stone-800 text-white"
               >
                 Save
