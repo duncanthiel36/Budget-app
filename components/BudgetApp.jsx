@@ -503,7 +503,7 @@ export default function BudgetApp() {
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
             <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets and visible categories</h2>
             <p className="text-xs text-stone-400 mb-4">
-              Check a category to show it on the overview. Total updates automatically as you go.
+              Check a category to show it on the overview. Set monthly spending targets. Total updates automatically as you go.
             </p>
             <div className="space-y-2 mb-4 max-h-80 overflow-y-auto">
               {ALL_CATEGORIES.map((c) => (
