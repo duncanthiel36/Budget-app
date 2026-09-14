@@ -14,13 +14,13 @@ const ALL_CATEGORIES = [
   "Investments",
   "Debt",
   "Pets",
-  "Other",
+  "Travel",
   "Subscriptions",
   "Personal",
   "Utilities",
   "Transportation",
   "Health",
-  "Travel",
+  "Other",
 ];
 
 const CATEGORY_COLORS = {
@@ -29,13 +29,13 @@ const CATEGORY_COLORS = {
   Investments: "#8B6DAE",
   Debt: "#B15C5C",
   Pets: "#6B9C6E",
-  Other: "#8A8F98",
+  Travel: "#8A8F98",
   Subscriptions: "#4F9B96",
   Personal: "#C9A24A",
   Utilities: "#7C8E42",
   Transportation: "#C97B8B",
   Health: "#A65D8A",
-  Travel: "#9C6B3F",
+  Other: "#9C6B3F",
 };
 
 const TRACK_COLOR = "#E7E3D8";
@@ -546,16 +546,16 @@ export default function BudgetApp() {
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: CATEGORY_COLORS[c] }}
                   />
-                  <label className="text-sm text-stone-600 w-28 shrink-0">{c}</label>
+                  <label className="text-sm text-stone-600 w-24 shrink-0">{c}</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={draftTargets[c] ?? ""}
-                    onChange={(e) => setDraftTargets((p) => ({ ...p, [c]: e.target.value }))}
-                    placeholder="0"
-                    className="flex-1 border border-stone-200 rounded-xl px-3 py-1.5 text-sm text-stone-700"
-                  />
+                   type="number"
+                   min="0"
+                  step="1"
+                  value={draftTargets[c] ?? ""}
+                  onChange={(e) => setDraftTargets((p) => ({ ...p, [c]: e.target.value }))}
+                 placeholder="0"
+                className="flex-1 min-w-0 border border-stone-200 rounded-xl px-3 py-1.5 text-sm text-stone-700"
+                 />
                 </div>
               ))}
             </div>
