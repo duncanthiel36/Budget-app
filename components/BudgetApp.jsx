@@ -312,19 +312,21 @@ export default function BudgetApp() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-2">
               {displayCategories.map((c) => {
                 const spent = spentByCategory[c];
                 const target = Number(monthTargets[c]) || 0;
                 const over = target > 0 && spent > target;
                 return (
-                  <div key={c} className="bg-white border border-stone-200 rounded-2xl p-3 flex flex-col items-center">
-                    <DonutMini spent={spent} target={target} color={CATEGORY_COLORS[c]} size={72} />
-                    <p className="text-sm font-medium text-stone-700 mt-2">{c}</p>
-                    <p className="text-xs text-stone-400">
-                      {money(spent)} / {money(target)}
-                    </p>
-                    {over && <p className="text-xs text-red-500 mt-0.5">over by {money(spent - target)}</p>}
+                  <div key={c} className="bg-white border border-stone-200 rounded-2xl px-3 py-2 flex items-center gap-3">
+                    <DonutMini spent={spent} target={target} color={CATEGORY_COLORS[c]} size={40} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-700">{c}</p>
+                      <p className="text-xs text-stone-400">
+                        {money(spent)} / {money(target)}
+                        {over && <span className="text-red-500"> · over by {money(spent - target)}</span>}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
