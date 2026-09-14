@@ -108,6 +108,7 @@ export default function BudgetApp() {
   const [formDate, setFormDate] = useState(todayISO());
   const [formAmount, setFormAmount] = useState("");
   const [formCategory, setFormCategory] = useState(ALL_CATEGORIES[0]);
+  const [formNote, setFormNote] = useState("");
   const [formError, setFormError] = useState("");
   const [viewMode, setViewMode] = useState("list");
   const [selectedDay, setSelectedDay] = useState(null);
@@ -184,10 +185,12 @@ export default function BudgetApp() {
         date: formDate,
         amount: amt,
         category: formType === "debit" ? formCategory : null,
+        note: formType === "credit" ? formNote.trim() : "",
       },
       ...prev,
     ]);
     setFormAmount("");
+    setFormNote("");
     setFormError("");
   }
   function deleteTransaction(id) {
@@ -208,7 +211,9 @@ export default function BudgetApp() {
           style={{ backgroundColor: t.type === "credit" ? "#3B7A57" : CATEGORY_COLORS[t.category] }}
         />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-stone-700">{t.type === "credit" ? "Income" : t.category}</p>
+          <p className="text-sm text-stone-700 truncate">
+            {t.type === "credit" ? t.note || "Income" : t.category}
+          </p>
           <p className="text-xs text-stone-400">{t.date}</p>
         </div>
         <p className={`text-sm font-medium ${t.type === "credit" ? "text-emerald-700" : "text-stone-800"}`}>
@@ -372,6 +377,16 @@ export default function BudgetApp() {
                     </option>
                   ))}
                 </select>
+              )}
+
+              {formType === "credit" && (
+                <input
+                  type="text"
+                  value={formNote}
+                  onChange={(e) => setFormNote(e.target.value)}
+                  placeholder="Note (e.g. paycheck, gift, refund)"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
+                />
               )}
 
               {formError && <p className="text-xs text-red-500 mb-2">{formError}</p>}
