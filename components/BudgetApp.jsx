@@ -14,13 +14,13 @@ const ALL_CATEGORIES = [
   "Investments",
   "Debt",
   "Pets",
-  "Other",
+  "Travel",
   "Subscriptions",
   "Personal",
   "Utilities",
   "Transportation",
   "Health",
-  "Travel",
+  "Other",
 ];
 
 const CATEGORY_COLORS = {
@@ -29,13 +29,13 @@ const CATEGORY_COLORS = {
   Investments: "#8B6DAE",
   Debt: "#B15C5C",
   Pets: "#6B9C6E",
-  Other: "#8A8F98",
+  Travel: "#8A8F98",
   Subscriptions: "#4F9B96",
   Personal: "#C9A24A",
   Utilities: "#7C8E42",
   Transportation: "#C97B8B",
   Health: "#A65D8A",
-  Travel: "#9C6B3F",
+  Other: "#9C6B3F",
 };
 
 const TRACK_COLOR = "#E7E3D8";
@@ -659,7 +659,7 @@ export default function BudgetApp() {
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
             <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets and visible categories</h2>
             <p className="text-xs text-stone-400 mb-4">
-              Check a category to show it on the overview. Total updates automatically as you go.
+              Check a category to show it on the overview. Set monthly spending targets. Total updates automatically as you go.
             </p>
             <div className="space-y-2 mb-4 max-h-80 overflow-y-auto">
               {ALL_CATEGORIES.map((c) => (
