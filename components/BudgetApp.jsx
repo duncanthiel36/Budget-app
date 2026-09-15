@@ -839,7 +839,7 @@ export default function BudgetApp() {
       type="number"
       step="0.01"
       min="0"
-      placeholder="Amount"
+      placeholder=""
       value={ruleAmount}
       onChange={(e) => setRuleAmount(e.target.value)}
       className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
