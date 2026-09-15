@@ -482,22 +482,28 @@ export default function BudgetApp() {
               </div>
 
               <div className="flex gap-2 mb-2">
-                <input
-                  type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Amount"
-                  value={formAmount}
-                  onChange={(e) => setFormAmount(e.target.value)}
-                  className="w-28 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
-                />
-              </div>
+  <div className="flex-1">
+    <label className="text-xs text-stone-400 mb-1 block">Date</label>
+    <input
+      type="date"
+      value={formDate}
+      onChange={(e) => setFormDate(e.target.value)}
+      className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
+    />
+  </div>
+  <div className="w-28">
+    <label className="text-xs text-stone-400 mb-1 block">Amount</label>
+    <input
+      type="number"
+      step="0.01"
+      min="0"
+      placeholder="0"
+      value={formAmount}
+      onChange={(e) => setFormAmount(e.target.value)}
+      className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
+    />
+  </div>
+</div>
 
               {formType === "debit" && (
                 <select
@@ -839,7 +845,7 @@ export default function BudgetApp() {
       type="number"
       step="0.01"
       min="0"
-      placeholder=""
+      placeholder="0"
       value={ruleAmount}
       onChange={(e) => setRuleAmount(e.target.value)}
       className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
