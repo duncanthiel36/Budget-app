@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Wallet, LogOut, Repeat, X } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useAuth } from "../lib/AuthProvider";
@@ -14,13 +14,13 @@ const ALL_CATEGORIES = [
   "Investments",
   "Debt",
   "Pets",
-  "Travel",
+  "Other",
   "Subscriptions",
   "Personal",
   "Utilities",
   "Transportation",
   "Health",
-  "Other",
+  "Travel",
 ];
 
 const CATEGORY_COLORS = {
@@ -29,13 +29,13 @@ const CATEGORY_COLORS = {
   Investments: "#8B6DAE",
   Debt: "#B15C5C",
   Pets: "#6B9C6E",
-  Travel: "#8A8F98",
+  Other: "#8A8F98",
   Subscriptions: "#4F9B96",
   Personal: "#C9A24A",
   Utilities: "#7C8E42",
   Transportation: "#C97B8B",
   Health: "#A65D8A",
-  Other: "#9C6B3F",
+  Travel: "#9C6B3F",
 };
 
 const TRACK_COLOR = "#E7E3D8";
@@ -79,6 +79,43 @@ function money(n) {
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
+function dateToISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getOccurrences(rule, startStr, endStr) {
+  const start = new Date(startStr + "T00:00:00");
+  const end = new Date(endStr + "T00:00:00");
+  const dates = [];
+  if (start > end) return dates;
+  if (rule.frequency === "weekly") {
+    const d = new Date(start);
+    while (d.getDay() !== Number(rule.weekday)) d.setDate(d.getDate() + 1);
+    while (d <= end) {
+      dates.push(dateToISO(d));
+      d.setDate(d.getDate() + 7);
+    }
+  } else {
+    let y = start.getFullYear();
+    let m = start.getMonth();
+    let safety = 0;
+    while (safety < 600) {
+      safety += 1;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const day = Math.min(Number(rule.dayOfMonth), daysInMonth);
+      const occ = new Date(y, m, day);
+      if (occ > end) break;
+      if (occ >= start) dates.push(dateToISO(occ));
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      }
+    }
+  }
+  return dates;
+}
 
 export default function BudgetApp() {
   const { user } = useAuth();
@@ -89,6 +126,8 @@ export default function BudgetApp() {
     setTargets,
     visibleCategories,
     setVisibleCategories,
+    recurringRules,
+    setRecurringRules,
     loaded,
   } = useBudgetData();
 
@@ -104,6 +143,17 @@ export default function BudgetApp() {
   const [autoPromptShown, setAutoPromptShown] = useState({});
   const [draftTargets, setDraftTargets] = useState({});
 
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [ruleType, setRuleType] = useState("debit");
+  const [ruleFrequency, setRuleFrequency] = useState("monthly");
+  const [ruleDayOfMonth, setRuleDayOfMonth] = useState("1");
+  const [ruleWeekday, setRuleWeekday] = useState("1");
+  const [ruleAmount, setRuleAmount] = useState("");
+  const [ruleCategory, setRuleCategory] = useState(ALL_CATEGORIES[0]);
+  const [ruleNote, setRuleNote] = useState("");
+  const [ruleStartDate, setRuleStartDate] = useState(todayISO());
+  const [ruleError, setRuleError] = useState("");
+
   const [formType, setFormType] = useState("debit");
   const [formDate, setFormDate] = useState(todayISO());
   const [formAmount, setFormAmount] = useState("");
@@ -116,6 +166,37 @@ export default function BudgetApp() {
   useEffect(() => {
     setSelectedDay(null);
   }, [selectedMonth]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const today = todayISO();
+    setTransactions((prev) => {
+      const existingKeys = new Set(
+        prev.filter((t) => t.ruleId).map((t) => `${t.ruleId}_${t.date}`)
+      );
+      const additions = [];
+      recurringRules.forEach((rule) => {
+        if (!rule.active) return;
+        const occurrences = getOccurrences(rule, rule.startDate, today);
+        occurrences.forEach((date) => {
+          const key = `${rule.id}_${date}`;
+          if (existingKeys.has(key)) return;
+          existingKeys.add(key);
+          additions.push({
+            id: uid(),
+            type: rule.type,
+            date,
+            amount: rule.amount,
+            category: rule.type === "debit" ? rule.category : null,
+            note: rule.type === "credit" ? rule.note : "",
+            ruleId: rule.id,
+          });
+        });
+      });
+      if (additions.length === 0) return prev;
+      return [...additions, ...prev];
+    });
+  }, [loaded, recurringRules]);
 
   const currentRealMonth = monthKey(new Date());
   useEffect(() => {
@@ -195,6 +276,59 @@ export default function BudgetApp() {
   }
   function deleteTransaction(id) {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  function openRecurringModal() {
+    setRuleType("debit");
+    setRuleFrequency("monthly");
+    setRuleDayOfMonth("1");
+    setRuleWeekday("1");
+    setRuleAmount("");
+    setRuleCategory(ALL_CATEGORIES[0]);
+    setRuleNote("");
+    setRuleStartDate(todayISO());
+    setRuleError("");
+    setShowRecurringModal(true);
+  }
+  function addRule() {
+    const amt = Number(ruleAmount);
+    if (!amt || amt <= 0) return setRuleError("Enter an amount greater than zero.");
+    if (ruleType === "debit" && !ruleCategory) return setRuleError("Choose a category.");
+    if (!ruleStartDate) return setRuleError("Choose a start date.");
+    setRecurringRules((prev) => [
+      ...prev,
+      {
+        id: uid(),
+        type: ruleType,
+        frequency: ruleFrequency,
+        dayOfMonth: ruleFrequency === "monthly" ? Number(ruleDayOfMonth) : null,
+        weekday: ruleFrequency === "weekly" ? Number(ruleWeekday) : null,
+        amount: amt,
+        category: ruleType === "debit" ? ruleCategory : null,
+        note: ruleType === "credit" ? ruleNote.trim() : "",
+        startDate: ruleStartDate,
+        active: true,
+      },
+    ]);
+    setRuleAmount("");
+    setRuleNote("");
+    setRuleError("");
+  }
+  function toggleRuleActive(id) {
+    setRecurringRules((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, active: !r.active } : r))
+    );
+  }
+  function deleteRule(id) {
+    setRecurringRules((prev) => prev.filter((r) => r.id !== id));
+  }
+  function describeRule(rule) {
+    const freq =
+      rule.frequency === "monthly"
+        ? `Monthly on day ${rule.dayOfMonth}`
+        : `Weekly on ${WEEKDAY_LABELS[rule.weekday]}`;
+    const what = rule.type === "credit" ? rule.note || "Income" : rule.category;
+    return `${freq} · ${what}`;
   }
 
   const sortedMonthTx = [...monthTx].sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -399,6 +533,13 @@ export default function BudgetApp() {
               </button>
             </div>
 
+            <button
+              onClick={openRecurringModal}
+              className="w-full flex items-center justify-center gap-1.5 border border-stone-200 text-stone-500 rounded-xl py-2 text-sm font-medium mb-4"
+            >
+              <Repeat size={15} /> Recurring transactions
+            </button>
+
             <div className="flex gap-2 mb-3">
               <button
                 onClick={() => setViewMode("list")}
@@ -518,7 +659,7 @@ export default function BudgetApp() {
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm">
             <h2 className="font-serif text-lg text-stone-800 mb-1">Set targets and visible categories</h2>
             <p className="text-xs text-stone-400 mb-4">
-              Check a category to show it on the overview. Set monthly spending targets. Total updates automatically as you go.
+              Check a category to show it on the overview. Total updates automatically as you go.
             </p>
             <div className="space-y-2 mb-4 max-h-80 overflow-y-auto">
               {ALL_CATEGORIES.map((c) => (
@@ -562,6 +703,173 @@ export default function BudgetApp() {
                 className="flex-1 py-2 rounded-xl text-sm font-medium bg-stone-800 text-white"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRecurringModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-6 z-50">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-serif text-lg text-stone-800">Recurring transactions</h2>
+              <button
+                onClick={() => setShowRecurringModal(false)}
+                className="p-1 rounded-full hover:bg-stone-100 text-stone-400"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-stone-400 mb-4">
+              Scheduled transactions are added automatically on their date.
+            </p>
+
+            {recurringRules.length > 0 && (
+              <div className="mb-4 border border-stone-200 rounded-xl divide-y divide-stone-100 overflow-hidden">
+                {recurringRules.map((rule) => (
+                  <div key={rule.id} className="flex items-center gap-2 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${rule.active ? "text-stone-700" : "text-stone-300 line-through"}`}>
+                        {describeRule(rule)}
+                      </p>
+                      <p className="text-xs text-stone-400">
+                        {rule.type === "credit" ? "+" : "-"}
+                        {money(rule.amount)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleRuleActive(rule.id)}
+                      className="text-xs text-stone-500 border border-stone-200 rounded-lg px-2 py-1"
+                    >
+                      {rule.active ? "Pause" : "Resume"}
+                    </button>
+                    <button
+                      onClick={() => deleteRule(rule.id)}
+                      className="p-1.5 rounded-full hover:bg-stone-100 text-stone-300"
+                      aria-label="Delete rule"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="border-t border-stone-100 pt-4">
+              <p className="text-sm font-medium text-stone-700 mb-2">New recurring transaction</p>
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setRuleType("debit")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${
+                    ruleType === "debit" ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500"
+                  }`}
+                >
+                  Debit
+                </button>
+                <button
+                  onClick={() => setRuleType("credit")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${
+                    ruleType === "credit" ? "bg-emerald-700 text-white border-emerald-700" : "border-stone-200 text-stone-500"
+                  }`}
+                >
+                  Credit
+                </button>
+              </div>
+
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => setRuleFrequency("monthly")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${
+                    ruleFrequency === "monthly" ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500"
+                  }`}
+                >
+                  Monthly
+                </button>
+                <button
+                  onClick={() => setRuleFrequency("weekly")}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border ${
+                    ruleFrequency === "weekly" ? "bg-stone-800 text-white border-stone-800" : "border-stone-200 text-stone-500"
+                  }`}
+                >
+                  Weekly
+                </button>
+              </div>
+
+              {ruleFrequency === "monthly" ? (
+                <select
+                  value={ruleDayOfMonth}
+                  onChange={(e) => setRuleDayOfMonth(e.target.value)}
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      Day {d} of the month
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={ruleWeekday}
+                  onChange={(e) => setRuleWeekday(e.target.value)}
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
+                >
+                  {WEEKDAY_LABELS.map((label, i) => (
+                    <option key={i} value={i}>
+                      Every {label}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="date"
+                  value={ruleStartDate}
+                  onChange={(e) => setRuleStartDate(e.target.value)}
+                  className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Amount"
+                  value={ruleAmount}
+                  onChange={(e) => setRuleAmount(e.target.value)}
+                  className="w-28 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700"
+                />
+              </div>
+
+              {ruleType === "debit" ? (
+                <select
+                  value={ruleCategory}
+                  onChange={(e) => setRuleCategory(e.target.value)}
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
+                >
+                  {ALL_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={ruleNote}
+                  onChange={(e) => setRuleNote(e.target.value)}
+                  placeholder="Note (e.g. paycheck)"
+                  className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-700 mb-2"
+                />
+              )}
+
+              {ruleError && <p className="text-xs text-red-500 mb-2">{ruleError}</p>}
+
+              <button
+                onClick={addRule}
+                className="w-full flex items-center justify-center gap-1 bg-stone-800 text-white rounded-xl py-2 text-sm font-medium"
+              >
+                <Plus size={16} /> Add recurring transaction
               </button>
             </div>
           </div>
